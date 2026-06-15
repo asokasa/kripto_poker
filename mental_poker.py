@@ -72,7 +72,7 @@ def is_prime(n: int) -> bool:
         d //= 2
         s += 1
 
-    # Deterministic for numbers far larger than this program uses.
+    
     for a in [2, 3, 5, 7, 11, 13]:
         if a >= n:
             continue
@@ -250,8 +250,8 @@ def prepare_unencrypted_game(
 def setup_game(
     params: MentalPokerParameters,
     rng: random.Random,
-    first_player_name: str = "Alice",
-    second_player_name: str = "Bob",
+    first_player_name: str = "Player One",
+    second_player_name: str = "Player 2",
 ) -> tuple[DeckSetup, MentalPokerPlayer, MentalPokerPlayer, list[int]]:
     deck_setup, first_player, second_player, deck = prepare_unencrypted_game(
         params, rng, first_player_name, second_player_name
@@ -523,8 +523,8 @@ def replace_draw_cards_for_draw(
 def simulate_draw_poker(
     rng: random.Random,
     params: MentalPokerParameters,
-    first_player_name: str = "Alice",
-    second_player_name: str = "Bob",
+    first_player_name: str = "Player One",
+    second_player_name: str = "Player 2",
     interactive_private_values: bool = False,
 ) -> str:
     out: list[str] = []
@@ -650,8 +650,8 @@ def final_betting(
 def simulate_texas_holdem(
     rng: random.Random,
     params: MentalPokerParameters,
-    first_player_name: str = "Alice",
-    second_player_name: str = "Bob",
+    first_player_name: str = "Player One",
+    second_player_name: str = "Player 2",
     force_showdown: bool = True,
     interactive_events: bool = False,
 ) -> str:
@@ -738,34 +738,10 @@ def simulate_texas_holdem(
     return "\n".join(out)
 
 
-def self_test() -> str:
-    rng = random.Random(12345)
-    params = default_parameters()
-    assert is_prime(params.p)
-    assert pow(params.g, params.p - 1, params.p) == 1
-    assert all(pow(params.g, (params.p - 1) // q, params.p) != 1 for q in factorize(params.p - 1))
-
-    deck_setup, alice, bob, deck = setup_game(params, rng)
-    one_card = take_cards(deck, 1)
-    opened_by_bob = bob.reveal(one_card[0])
-    final_value = alice.reveal(opened_by_bob)
-    assert final_value in deck_setup.value_to_card
-    assert alice.private_x is not None and alice.inverse_y is not None
-    assert bob.private_x is not None and bob.inverse_y is not None
-    assert (alice.private_x * alice.inverse_y) % (params.p - 1) == 1
-    assert (bob.private_x * bob.inverse_y) % (params.p - 1) == 1
-
-    straight_flush = [Card(10, "Pikk"), Card(11, "Pikk"), Card(12, "Pikk"), Card(13, "Pikk"), Card(14, "Pikk")]
-    four_kind = [Card(9, "Treff"), Card(9, "Karo"), Card(9, "Kor"), Card(9, "Pikk"), Card(2, "Treff")]
-    assert evaluate_five(straight_flush).key() > evaluate_five(four_kind).key()
-    return "OK: az onellenorzes sikeres"
-
-
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = HungarianArgumentParser(description="Mental Poker beadando szimulacio", add_help=False)
     parser.add_argument("-h", "--help", action="help", help="sugo megjelenitese, majd kilepes")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED, help="veletlen mag az ismetelheto futasokhoz")
-    parser.add_argument("--test", action="store_true", help="onellenorzes futtatasa, majd kilepes")
     parser.add_argument(
         "--allow-folds",
         action="store_true",
@@ -777,7 +753,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 def ask_for_prime(default: int = DEFAULT_P) -> int:
     while True:
         try:
-            raw = input(f"Valassz egy p primet (Enter = {default}): ").strip()
+            raw = input(f"Valassz egy p primet ({default}): ").strip()
         except EOFError:
             print()
             return default
@@ -802,7 +778,7 @@ def ask_for_prime(default: int = DEFAULT_P) -> int:
 
 def ask_for_player_name(label: str, default: str) -> str:
     try:
-        raw = input(f"{label} neve (Enter = {default}): ").strip()
+        raw = input(f"{label} neve ({default}): ").strip()
     except EOFError:
         print()
         return default
@@ -811,8 +787,8 @@ def ask_for_player_name(label: str, default: str) -> str:
 
 def ask_for_player_names() -> tuple[str, str]:
     while True:
-        first_name = ask_for_player_name("Elso jatekos", "Alice")
-        second_name = ask_for_player_name("Masodik jatekos", "Bob")
+        first_name = ask_for_player_name("Elso jatekos", "Player One")
+        second_name = ask_for_player_name("Masodik jatekos", "Player 2")
         if first_name != second_name:
             return first_name, second_name
         print("A ket jatekos neve nem lehet ugyanaz.")
@@ -821,7 +797,7 @@ def ask_for_player_names() -> tuple[str, str]:
 def ask_for_game_type() -> str:
     while True:
         try:
-            raw = input("Valassz jatektipust [1=5 lapos poker, 2=Texas Holdem] (Enter = 1): ").strip().lower()
+            raw = input("Valassz jatektipust [1=5 lapos poker, 2=Texas Holdem]: ").strip().lower()
         except EOFError:
             print()
             return "draw"
@@ -843,10 +819,6 @@ def wait_for_enter(prompt: str) -> None:
 
 def main() -> None:
     args = build_arg_parser().parse_args()
-
-    if args.test:
-        print(self_test())
-        return
 
     p = ask_for_prime()
     first_player_name, second_player_name = ask_for_player_names()

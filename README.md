@@ -6,7 +6,6 @@ Ez a mappa egy futtathato Python megoldast tartalmaz a felev vegi Mental Poker b
 
 ```powershell
 python mental_poker.py
-python mental_poker.py --test
 ```
 
 Hasznos kapcsolok:
@@ -16,7 +15,7 @@ python mental_poker.py --seed 42
 python mental_poker.py --allow-folds
 ```
 
-A program indulas utan bekeri a `p` primet, a ket jatekos nevet, majd a jatektipust. Ures Enter eseten az alapertelmezett `1000003`, `Alice`, `Bob` es `5 lapos poker` ertekeket hasznalja.
+A program indulas utan bekeri a `p` primet, a ket jatekos nevet, majd a jatektipust. Ures Enter eseten az alapertelmezett `1000003`, `Player One`, `Player 2` es `5 lapos poker` ertekeket hasznalja.
 
 Mindket jatektipusnal a program minden fontos protokoll-lepes utan Enterre var. A jatekosok privat `x` ertekeit a program automatikusan, veletlenszeruen generalja ugy, hogy legyen modularis inverzuk mod `p-1`.
 

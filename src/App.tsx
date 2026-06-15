@@ -30,7 +30,7 @@ import {
   take,
 } from "./mentalPoker";
 
-type PlayerId = "alice" | "bob";
+type PlayerId = "player_one" | "player_2";
 type GamePhase = "protocol" | "swap" | "readyShowdown" | "showdown";
 
 type PlayerState = {
@@ -53,15 +53,15 @@ type GameState = {
   phase: GamePhase;
   step: number;
   activePlayer: PlayerId;
-  alice: PlayerState;
-  bob: PlayerState;
+  player_one: PlayerState;
+  player_2: PlayerState;
   log: string[];
 };
 
-const PLAYER_ORDER: PlayerId[] = ["alice", "bob"];
+const PLAYER_ORDER: PlayerId[] = ["player_one", "player_2"];
 
 function otherPlayer(id: PlayerId): PlayerId {
-  return id === "alice" ? "bob" : "alice";
+  return id === "player_one" ? "player_2" : "player_one";
 }
 
 function getPlayer(game: GameState, id: PlayerId) {
@@ -95,19 +95,19 @@ function cardsFromValues(values: number[], valueToCard: Map<number, Card>) {
   });
 }
 
-function createGame(seed = randomSeed(), names = { alice: "Alice", bob: "Bob" }): GameState {
+function createGame(seed = randomSeed(), names = { player_one: "Player One", player_2: "Player 2" }): GameState {
   const rng = new SeededRng(seed);
   const { rawIds, publicDeck, valueToCard } = createPublicDeck(PARAMS, rng);
   const deck = [...publicDeck];
   rng.shuffle(deck);
 
-  const alice = choosePrivate(names.alice || "Alice", PARAMS, rng);
-  const bob = choosePrivate(names.bob || "Bob", PARAMS, rng);
-  const aliceLayer = playerShuffle(deck, alice, PARAMS, rng);
-  const encryptedDeck = playerShuffle(aliceLayer, bob, PARAMS, rng);
+  const player_one = choosePrivate(names.player_one || "Player One", PARAMS, rng);
+  const player_2 = choosePrivate(names.player_2 || "Player 2", PARAMS, rng);
+  const player_oneLayer = playerShuffle(deck, player_one, PARAMS, rng);
+  const encryptedDeck = playerShuffle(player_oneLayer, player_2, PARAMS, rng);
   const remainingDeck = [...encryptedDeck];
-  const aliceEncrypted = take(remainingDeck, 5);
-  const bobEncrypted = take(remainingDeck, 5);
+  const player_oneEncrypted = take(remainingDeck, 5);
+  const player_2Encrypted = take(remainingDeck, 5);
 
   return {
     seed,
@@ -117,15 +117,15 @@ function createGame(seed = randomSeed(), names = { alice: "Alice", bob: "Bob" })
     deck: remainingDeck,
     phase: "protocol",
     step: 0,
-    activePlayer: "alice",
-    alice: {
-      secret: alice,
-      encrypted: aliceEncrypted,
+    activePlayer: "player_one",
+    player_one: {
+      secret: player_one,
+      encrypted: player_oneEncrypted,
       selected: [],
     },
-    bob: {
-      secret: bob,
-      encrypted: bobEncrypted,
+    player_2: {
+      secret: player_2,
+      encrypted: player_2Encrypted,
       selected: [],
     },
     log: ["Mental Poker: 5 lapos poker"],
@@ -140,12 +140,12 @@ function advanceProtocol(game: GameState): GameState {
   const next: GameState = {
     ...game,
     log: [...game.log],
-    alice: { ...game.alice },
-    bob: { ...game.bob },
+    player_one: { ...game.player_one },
+    player_2: { ...game.player_2 },
   };
 
-  const alice = next.alice.secret.name;
-  const bob = next.bob.secret.name;
+  const player_one = next.player_one.secret.name;
+  const player_2 = next.player_2.secret.name;
 
   switch (next.step) {
     case 0:
@@ -161,44 +161,44 @@ function advanceProtocol(game: GameState): GameState {
       appendLog(next, "Mindket jatekos ervenyes veletlen privat x erteket valasztott.");
       break;
     case 4:
-      appendLog(next, `${alice} meghivja a sajat shuffle fuggvenyet a kozos Deck-re.`);
+      appendLog(next, `${player_one} meghivja a sajat shuffle fuggvenyet a kozos Deck-re.`);
       break;
     case 5:
-      appendLog(next, `${bob} meghivja a sajat shuffle fuggvenyet a kozos Deck-re.`);
+      appendLog(next, `${player_2} meghivja a sajat shuffle fuggvenyet a kozos Deck-re.`);
       break;
     case 6:
-      appendLog(next, `${alice} valaszt 5 titkositott lapot a Deck-bol.`);
+      appendLog(next, `${player_one} valaszt 5 titkositott lapot a Deck-bol.`);
       break;
     case 7:
-      appendLog(next, `${bob} valaszt 5 titkositott lapot a Deck-bol.`);
+      appendLog(next, `${player_2} valaszt 5 titkositott lapot a Deck-bol.`);
       break;
     case 8:
-      appendLog(next, `${alice} atadja a titkositott lapjait ${bob} reszere reveal-re.`);
+      appendLog(next, `${player_one} atadja a titkositott lapjait ${player_2} reszere reveal-re.`);
       break;
     case 9:
-      next.alice.helperOpened = revealMany(next.alice.encrypted, next.bob.secret, next.params);
-      appendLog(next, `${bob} meghivja a reveal(card) muveletet ezekre a lapokra, majd visszaadja oket.`);
+      next.player_one.helperOpened = revealMany(next.player_one.encrypted, next.player_2.secret, next.params);
+      appendLog(next, `${player_2} meghivja a reveal(card) muveletet ezekre a lapokra, majd visszaadja oket.`);
       break;
     case 10: {
-      const values = revealMany(next.alice.helperOpened ?? [], next.alice.secret, next.params);
-      next.alice.values = values;
-      next.alice.cards = cardsFromValues(values, next.valueToCard);
-      appendLog(next, `${alice} meghivja a sajat reveal(card) muveletet, es megismeri a lapjait.`);
+      const values = revealMany(next.player_one.helperOpened ?? [], next.player_one.secret, next.params);
+      next.player_one.values = values;
+      next.player_one.cards = cardsFromValues(values, next.valueToCard);
+      appendLog(next, `${player_one} meghivja a sajat reveal(card) muveletet, es megismeri a lapjait.`);
       break;
     }
     case 11:
-      appendLog(next, `${bob} atadja a titkositott lapjait ${alice} reszere reveal-re.`);
+      appendLog(next, `${player_2} atadja a titkositott lapjait ${player_one} reszere reveal-re.`);
       break;
     case 12:
-      next.bob.helperOpened = revealMany(next.bob.encrypted, next.alice.secret, next.params);
-      appendLog(next, `${alice} meghivja a reveal(card) muveletet ezekre a lapokra, majd visszaadja oket.`);
+      next.player_2.helperOpened = revealMany(next.player_2.encrypted, next.player_one.secret, next.params);
+      appendLog(next, `${player_one} meghivja a reveal(card) muveletet ezekre a lapokra, majd visszaadja oket.`);
       break;
     case 13: {
-      const values = revealMany(next.bob.helperOpened ?? [], next.bob.secret, next.params);
-      next.bob.values = values;
-      next.bob.cards = cardsFromValues(values, next.valueToCard);
+      const values = revealMany(next.player_2.helperOpened ?? [], next.player_2.secret, next.params);
+      next.player_2.values = values;
+      next.player_2.cards = cardsFromValues(values, next.valueToCard);
       next.phase = "swap";
-      appendLog(next, `${bob} meghivja a sajat reveal(card) muveletet, es megismeri a lapjait.`);
+      appendLog(next, `${player_2} meghivja a sajat reveal(card) muveletet, es megismeri a lapjait.`);
       appendLog(next, "Cserefazis: valts jatekost, es jelold ki, mely lapokat csereljek.");
       break;
     }
@@ -251,12 +251,12 @@ function applySwaps(game: GameState): GameState {
     ...game,
     deck: [...game.deck],
     log: [...game.log],
-    alice: { ...game.alice, selected: [...game.alice.selected] },
-    bob: { ...game.bob, selected: [...game.bob.selected] },
+    player_one: { ...game.player_one, selected: [...game.player_one.selected] },
+    player_2: { ...game.player_2, selected: [...game.player_2.selected] },
   };
 
-  replaceForPlayer(next, "alice");
-  replaceForPlayer(next, "bob");
+  replaceForPlayer(next, "player_one");
+  replaceForPlayer(next, "player_2");
   next.phase = "readyShowdown";
   appendLog(next, "A cserefazis lezart. Kovetkezik a mutatas.");
   return next;
@@ -266,19 +266,19 @@ function revealShowdown(game: GameState): GameState {
   const next: GameState = {
     ...game,
     log: [...game.log],
-    alice: { ...game.alice },
-    bob: { ...game.bob },
+    player_one: { ...game.player_one },
+    player_2: { ...game.player_2 },
     phase: "showdown",
   };
-  const aliceCards = getCards(next, "alice");
-  const bobCards = getCards(next, "bob");
-  const aliceScore = evaluateFive(aliceCards);
-  const bobScore = evaluateFive(bobCards);
+  const player_oneCards = getCards(next, "player_one");
+  const player_2Cards = getCards(next, "player_2");
+  const player_oneScore = evaluateFive(player_oneCards);
+  const player_2Score = evaluateFive(player_2Cards);
   appendLog(next, "Mutatas: a jatekosok felfedik a privat ertekeiket.");
-  appendLog(next, keyLine(next.alice.secret, next.params));
-  appendLog(next, keyLine(next.bob.secret, next.params));
-  appendLog(next, `${next.alice.secret.name} vegso keze: ${formatCards(aliceCards)} -> ${scoreText(aliceScore)}.`);
-  appendLog(next, `${next.bob.secret.name} vegso keze: ${formatCards(bobCards)} -> ${scoreText(bobScore)}.`);
+  appendLog(next, keyLine(next.player_one.secret, next.params));
+  appendLog(next, keyLine(next.player_2.secret, next.params));
+  appendLog(next, `${next.player_one.secret.name} vegso keze: ${formatCards(player_oneCards)} -> ${scoreText(player_oneScore)}.`);
+  appendLog(next, `${next.player_2.secret.name} vegso keze: ${formatCards(player_2Cards)} -> ${scoreText(player_2Score)}.`);
   return next;
 }
 
@@ -427,37 +427,37 @@ function ActionBar({
 }
 
 function ResultStrip({ game }: { game: GameState }) {
-  const aliceCards = getCards(game, "alice");
-  const bobCards = getCards(game, "bob");
-  if (game.phase !== "showdown" || aliceCards.length !== 5 || bobCards.length !== 5) {
+  const player_oneCards = getCards(game, "player_one");
+  const player_2Cards = getCards(game, "player_2");
+  if (game.phase !== "showdown" || player_oneCards.length !== 5 || player_2Cards.length !== 5) {
     return null;
   }
-  const aliceScore = evaluateFive(aliceCards);
-  const bobScore = evaluateFive(bobCards);
-  const result = compareScores(aliceScore, bobScore);
+  const player_oneScore = evaluateFive(player_oneCards);
+  const player_2Score = evaluateFive(player_2Cards);
+  const result = compareScores(player_oneScore, player_2Score);
   const winner =
-    result > 0 ? game.alice.secret.name : result < 0 ? game.bob.secret.name : "Dontetlen";
+    result > 0 ? game.player_one.secret.name : result < 0 ? game.player_2.secret.name : "Dontetlen";
 
   return (
     <section className="result-strip">
       <div>
-        <span className="result-label">{game.alice.secret.name}</span>
-        <strong>{scoreText(aliceScore)}</strong>
+        <span className="result-label">{game.player_one.secret.name}</span>
+        <strong>{scoreText(player_oneScore)}</strong>
       </div>
       <div className="winner-pill">
         <Trophy size={18} />
         {winner}
       </div>
       <div>
-        <span className="result-label">{game.bob.secret.name}</span>
-        <strong>{scoreText(bobScore)}</strong>
+        <span className="result-label">{game.player_2.secret.name}</span>
+        <strong>{scoreText(player_2Score)}</strong>
       </div>
     </section>
   );
 }
 
 export default function App() {
-  const [names, setNames] = useState({ alice: "Alice", bob: "Bob" });
+  const [names, setNames] = useState({ player_one: "Player One", player_2: "Player 2" });
   const [game, setGame] = useState<GameState>(() => createGame(randomSeed(), names));
 
   const activeName = getPlayer(game, game.activePlayer).secret.name;
@@ -525,7 +525,7 @@ export default function App() {
         <section className="name-strip">
           {PLAYER_ORDER.map((id) => (
             <label key={id}>
-              <span>{id === "alice" ? "Elso jatekos" : "Masodik jatekos"}</span>
+              <span>{id === "player_one" ? "Elso jatekos" : "Masodik jatekos"}</span>
               <input
                 value={names[id]}
                 onChange={(event) => changeName(id, event.target.value)}
@@ -549,18 +549,18 @@ export default function App() {
 
         <div className="players-grid">
           <HandSection
-            playerId="alice"
+            playerId="player_one"
             game={game}
-            active={game.activePlayer === "alice"}
-            onActivate={() => setGame((current) => ({ ...current, activePlayer: "alice" }))}
-            onToggle={(index) => toggleSelection("alice", index)}
+            active={game.activePlayer === "player_one"}
+            onActivate={() => setGame((current) => ({ ...current, activePlayer: "player_one" }))}
+            onToggle={(index) => toggleSelection("player_one", index)}
           />
           <HandSection
-            playerId="bob"
+            playerId="player_2"
             game={game}
-            active={game.activePlayer === "bob"}
-            onActivate={() => setGame((current) => ({ ...current, activePlayer: "bob" }))}
-            onToggle={(index) => toggleSelection("bob", index)}
+            active={game.activePlayer === "player_2"}
+            onActivate={() => setGame((current) => ({ ...current, activePlayer: "player_2" }))}
+            onToggle={(index) => toggleSelection("player_2", index)}
           />
         </div>
 

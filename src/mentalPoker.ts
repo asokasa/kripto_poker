@@ -25,8 +25,8 @@ export type PlayerSecrets = {
 
 export type PreparedGame = {
   params: MentalPokerParams;
-  alice: PlayerSecrets;
-  bob: PlayerSecrets;
+  player_one: PlayerSecrets;
+  player_2: PlayerSecrets;
   deck: number[];
   valueToCard: Map<number, Card>;
   rawIds: number[];
@@ -35,20 +35,20 @@ export type PreparedGame = {
 export type DrawRound = {
   seed: number;
   params: MentalPokerParams;
-  alice: PlayerSecrets;
-  bob: PlayerSecrets;
+  player_one: PlayerSecrets;
+  player_2: PlayerSecrets;
   deck: number[];
   valueToCard: Map<number, Card>;
-  aliceCards: Card[];
-  aliceValues: number[];
-  bobCards: Card[];
-  bobValues: number[];
-  bobInitialCards: Card[];
+  player_oneCards: Card[];
+  player_oneValues: number[];
+  player_2Cards: Card[];
+  player_2Values: number[];
+  player_2InitialCards: Card[];
   log: string[];
   phase: "draw" | "showdown";
   showdown?: {
-    aliceScore: HandScore;
-    bobScore: HandScore;
+    player_oneScore: HandScore;
+    player_2Score: HandScore;
     winner: string;
   };
 };
@@ -56,18 +56,18 @@ export type DrawRound = {
 export type HoldemRound = {
   seed: number;
   params: MentalPokerParams;
-  alice: PlayerSecrets;
-  bob: PlayerSecrets;
+  player_one: PlayerSecrets;
+  player_2: PlayerSecrets;
   deck: number[];
   valueToCard: Map<number, Card>;
-  aliceHole: Card[];
-  bobHole: Card[];
+  player_oneHole: Card[];
+  player_2Hole: Card[];
   board: Card[];
   log: string[];
   phase: "preflop" | "flop" | "turn" | "river" | "betting" | "showdown" | "folded";
   showdown?: {
-    aliceScore: HandScore;
-    bobScore: HandScore;
+    player_oneScore: HandScore;
+    player_2Score: HandScore;
     winner: string;
   };
 };
@@ -241,11 +241,11 @@ export function createPublicDeck(params: MentalPokerParams, rng: SeededRng) {
 export function prepareGame(seed = randomSeed(), params = PARAMS): PreparedGame {
   const rng = new SeededRng(seed);
   const { rawIds, publicDeck, valueToCard } = createPublicDeck(params, rng);
-  const alice = choosePrivate("Alice", params, rng);
-  const bob = choosePrivate("Bob", params, rng);
-  const aliceLayer = playerShuffle(publicDeck, alice, params, rng);
-  const deck = playerShuffle(aliceLayer, bob, params, rng);
-  return { params, alice, bob, deck, valueToCard, rawIds };
+  const player_one = choosePrivate("Player One", params, rng);
+  const player_2 = choosePrivate("Player 2", params, rng);
+  const player_oneLayer = playerShuffle(publicDeck, player_one, params, rng);
+  const deck = playerShuffle(player_oneLayer, player_2, params, rng);
+  return { params, player_one, player_2, deck, valueToCard, rawIds };
 }
 
 export function take(deck: number[], count: number) {
@@ -290,25 +290,25 @@ function revealPublicCards(
 export function newDrawRound(seed = randomSeed()): DrawRound {
   const prepared = prepareGame(seed);
   const deck = [...prepared.deck];
-  const alice = revealPrivateCards(take(deck, 5), prepared.alice, prepared.bob, prepared.params, prepared.valueToCard);
-  const bob = revealPrivateCards(take(deck, 5), prepared.bob, prepared.alice, prepared.params, prepared.valueToCard);
+  const player_one = revealPrivateCards(take(deck, 5), prepared.player_one, prepared.player_2, prepared.params, prepared.valueToCard);
+  const player_2 = revealPrivateCards(take(deck, 5), prepared.player_2, prepared.player_one, prepared.params, prepared.valueToCard);
   return {
     seed,
     params: prepared.params,
-    alice: prepared.alice,
-    bob: prepared.bob,
+    player_one: prepared.player_one,
+    player_2: prepared.player_2,
     deck,
     valueToCard: prepared.valueToCard,
-    aliceCards: alice.cards,
-    aliceValues: alice.values,
-    bobCards: bob.cards,
-    bobValues: bob.values,
-    bobInitialCards: [...bob.cards],
+    player_oneCards: player_one.cards,
+    player_oneValues: player_one.values,
+    player_2Cards: player_2.cards,
+    player_2Values: player_2.values,
+    player_2InitialCards: [...player_2.cards],
     phase: "draw",
     log: [
       `Deck prepared with ${prepared.rawIds.length} random ids where p/2 < d < p-1.`,
-      "Alice shuffled and encrypted the public deck.",
-      "Bob shuffled and encrypted Alice's deck.",
+      "Player One shuffled and encrypted the public deck.",
+      "Player 2 shuffled and encrypted Player One's deck.",
       "Private cards were opened through the two-step reveal flow.",
     ],
   };
@@ -328,39 +328,39 @@ function replaceCards(round: DrawRound, owner: PlayerSecrets, helper: PlayerSecr
   return { oldCards, newCards: opened.cards };
 }
 
-export function completeDrawRound(round: DrawRound, aliceDiscards: number[]) {
+export function completeDrawRound(round: DrawRound, player_oneDiscards: number[]) {
   const next: DrawRound = {
     ...round,
     deck: [...round.deck],
-    aliceCards: [...round.aliceCards],
-    aliceValues: [...round.aliceValues],
-    bobCards: [...round.bobCards],
-    bobValues: [...round.bobValues],
+    player_oneCards: [...round.player_oneCards],
+    player_oneValues: [...round.player_oneValues],
+    player_2Cards: [...round.player_2Cards],
+    player_2Values: [...round.player_2Values],
     log: [...round.log],
   };
 
-  const alice = replaceCards(next, next.alice, next.bob, aliceDiscards, next.aliceCards, next.aliceValues);
-  const bobDiscards = chooseDrawDiscards(next.bobCards);
-  const bob = replaceCards(next, next.bob, next.alice, bobDiscards, next.bobCards, next.bobValues);
+  const player_one = replaceCards(next, next.player_one, next.player_2, player_oneDiscards, next.player_oneCards, next.player_oneValues);
+  const player_2Discards = chooseDrawDiscards(next.player_2Cards);
+  const player_2 = replaceCards(next, next.player_2, next.player_one, player_2Discards, next.player_2Cards, next.player_2Values);
 
   next.log.push(
-    alice.oldCards.length > 0
-      ? `Alice exchanged ${formatCards(alice.oldCards)} for ${formatCards(alice.newCards)}.`
-      : "Alice stood pat.",
+    player_one.oldCards.length > 0
+      ? `Player One exchanged ${formatCards(player_one.oldCards)} for ${formatCards(player_one.newCards)}.`
+      : "Player One stood pat.",
   );
   next.log.push(
-    bob.oldCards.length > 0
-      ? `Bob exchanged ${bob.oldCards.length} card${bob.oldCards.length === 1 ? "" : "s"}.`
-      : "Bob stood pat.",
+    player_2.oldCards.length > 0
+      ? `Player 2 exchanged ${player_2.oldCards.length} card${player_2.oldCards.length === 1 ? "" : "s"}.`
+      : "Player 2 stood pat.",
   );
 
-  const aliceScore = evaluateFive(next.aliceCards);
-  const bobScore = evaluateFive(next.bobCards);
+  const player_oneScore = evaluateFive(next.player_oneCards);
+  const player_2Score = evaluateFive(next.player_2Cards);
   next.phase = "showdown";
   next.showdown = {
-    aliceScore,
-    bobScore,
-    winner: winnerName(aliceScore, bobScore),
+    player_oneScore,
+    player_2Score,
+    winner: winnerName(player_oneScore, player_2Score),
   };
   next.log.push("Showdown: both private exponents are opened.");
   return next;
@@ -369,22 +369,22 @@ export function completeDrawRound(round: DrawRound, aliceDiscards: number[]) {
 export function newHoldemRound(seed = randomSeed()): HoldemRound {
   const prepared = prepareGame(seed);
   const deck = [...prepared.deck];
-  const aliceHole = revealPrivateCards(take(deck, 2), prepared.alice, prepared.bob, prepared.params, prepared.valueToCard).cards;
-  const bobHole = revealPrivateCards(take(deck, 2), prepared.bob, prepared.alice, prepared.params, prepared.valueToCard).cards;
+  const player_oneHole = revealPrivateCards(take(deck, 2), prepared.player_one, prepared.player_2, prepared.params, prepared.valueToCard).cards;
+  const player_2Hole = revealPrivateCards(take(deck, 2), prepared.player_2, prepared.player_one, prepared.params, prepared.valueToCard).cards;
   return {
     seed,
     params: prepared.params,
-    alice: prepared.alice,
-    bob: prepared.bob,
+    player_one: prepared.player_one,
+    player_2: prepared.player_2,
     deck,
     valueToCard: prepared.valueToCard,
-    aliceHole,
-    bobHole,
+    player_oneHole,
+    player_2Hole,
     board: [],
     phase: "preflop",
     log: [
       `Deck prepared with ${prepared.rawIds.length} random ids where p/2 < d < p-1.`,
-      "Alice and Bob both shuffled and encrypted the shared deck.",
+      "Player One and Player 2 both shuffled and encrypted the shared deck.",
       "Hole cards were privately opened through the two-step reveal flow.",
     ],
   };
@@ -399,19 +399,19 @@ export function advanceHoldem(round: HoldemRound): HoldemRound {
   };
 
   if (next.phase === "preflop") {
-    next.board.push(...revealPublicCards(take(next.deck, 3), [next.alice, next.bob], next.params, next.valueToCard));
+    next.board.push(...revealPublicCards(take(next.deck, 3), [next.player_one, next.player_2], next.params, next.valueToCard));
     next.phase = "flop";
     next.log.push("Flop was revealed by both players.");
     return next;
   }
   if (next.phase === "flop") {
-    next.board.push(...revealPublicCards(take(next.deck, 1), [next.alice, next.bob], next.params, next.valueToCard));
+    next.board.push(...revealPublicCards(take(next.deck, 1), [next.player_one, next.player_2], next.params, next.valueToCard));
     next.phase = "turn";
     next.log.push("Turn was revealed by both players.");
     return next;
   }
   if (next.phase === "turn") {
-    next.board.push(...revealPublicCards(take(next.deck, 1), [next.alice, next.bob], next.params, next.valueToCard));
+    next.board.push(...revealPublicCards(take(next.deck, 1), [next.player_one, next.player_2], next.params, next.valueToCard));
     next.phase = "river";
     next.log.push("River was revealed by both players.");
     return next;
@@ -428,19 +428,19 @@ export function finishHoldem(round: HoldemRound, called: boolean): HoldemRound {
   const next: HoldemRound = { ...round, log: [...round.log] };
   if (!called) {
     next.phase = "folded";
-    next.log.push("Alice folded. Private exponents remain sealed.");
+    next.log.push("Player One folded. Private exponents remain sealed.");
     return next;
   }
 
-  const aliceScore = evaluateBest([...next.aliceHole, ...next.board]);
-  const bobScore = evaluateBest([...next.bobHole, ...next.board]);
+  const player_oneScore = evaluateBest([...next.player_oneHole, ...next.board]);
+  const player_2Score = evaluateBest([...next.player_2Hole, ...next.board]);
   next.phase = "showdown";
   next.showdown = {
-    aliceScore,
-    bobScore,
-    winner: winnerName(aliceScore, bobScore),
+    player_oneScore,
+    player_2Score,
+    winner: winnerName(player_oneScore, player_2Score),
   };
-  next.log.push("Alice called. Both private exponents are opened.");
+  next.log.push("Player One called. Both private exponents are opened.");
   return next;
 }
 
@@ -583,13 +583,13 @@ export function chooseDrawDiscards(cards: Card[]) {
     .map(({ index }) => index);
 }
 
-function winnerName(aliceScore: HandScore, bobScore: HandScore) {
-  const result = compareScores(aliceScore, bobScore);
+function winnerName(player_oneScore: HandScore, player_2Score: HandScore) {
+  const result = compareScores(player_oneScore, player_2Score);
   if (result > 0) {
-    return "Alice";
+    return "Player One";
   }
   if (result < 0) {
-    return "Bob";
+    return "Player 2";
   }
   return "Tie";
 }

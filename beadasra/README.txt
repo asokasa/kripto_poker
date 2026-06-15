@@ -1,0 +1,1 @@
+A pokers tortenet alkalmazasa(ha nem mukodik akkor bemutatason mutatom meg(gyakorlatilag egy web app amiben latvanyosabb a szimulacio)): https://kripto-poker-bf4id0c0h-asokasas-projects.vercel.app/
